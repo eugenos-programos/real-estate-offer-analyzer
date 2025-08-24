@@ -1,4 +1,5 @@
 import os
+from logging import Logger
 
 from langchain_core.documents import Document
 from langchain_huggingface.embeddings import HuggingFaceEndpointEmbeddings
@@ -12,11 +13,13 @@ class QdrantDatabaseClient:
         qdrant_localhost_port: str,
         collection_name: str,
         vector_size: int,
+        logger: Logger,
         embeddings_model: str = "sentence-transformers/all-mpnet-base-v2",
     ):
         self._client = QdrantClient(
             host="localhost", port=qdrant_localhost_port, timeout=2.0
         )
+        self.logger = logger
         if not self._client.collection_exists(collection_name):
             self._client.create_collection(
                 collection_name=collection_name,
@@ -37,11 +40,12 @@ class QdrantDatabaseClient:
         documents = []
         for offer_data in offers_data:
             document = Document(
-                page_content=offer_data["description"],
-                metadata=offer_data.pop("description"),
+                page_content=offer_data.pop("description"),
+                metadata=offer_data,
             )
             documents.append(document)
         self._vector_store.add_documents(documents)
+        self.logger.info(f"Added {len(documents)} documents into Qdrant vector store.")
 
     def search_with_filters(self, query: str) -> list:
         docs = self._vector_store.similarity_search(query)

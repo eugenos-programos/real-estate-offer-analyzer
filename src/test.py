@@ -13,6 +13,7 @@ client = QdrantDatabaseClient(
     qdrant_localhost_port=8888,
     collection_name="real_estate_offers",
     vector_size=768,
+    logger=logger,
 )
 
 
@@ -24,4 +25,4 @@ for offer in tqdm(offers, desc="Processing real estate offers"):
     res = web_scrapper.parse_offer_page(offer)
     logger.info(f"Extracted data {res} for {offer}")
     offers_data.append(res)
-client.add_documents_to_database(offers_data)
+    client.add_documents_to_database([res])

@@ -32,7 +32,7 @@ class ColoredFormatter(logging.Formatter):
         return super().format(record)
 
 
-def get_logger_object(log_file: str) -> logging.Logger:
+def get_logger_object(log_file: str = None) -> logging.Logger:
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
 
