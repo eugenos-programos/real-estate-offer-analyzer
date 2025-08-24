@@ -1,3 +1,5 @@
+import os
+
 from langchain_core.documents import Document
 from langchain_huggingface.embeddings import HuggingFaceEndpointEmbeddings
 from langchain_qdrant import QdrantVectorStore
@@ -16,7 +18,7 @@ class QdrantDatabaseClient:
             host="localhost", port=qdrant_localhost_port, timeout=2.0
         )
         if not self._client.collection_exists(collection_name):
-            self.client.create_collection(
+            self._client.create_collection(
                 collection_name=collection_name,
                 vectors_config=models.VectorParams(
                     size=vector_size, distance=models.Distance.COSINE
@@ -25,7 +27,7 @@ class QdrantDatabaseClient:
         embeddings = HuggingFaceEndpointEmbeddings(
             model=embeddings_model,
             task="feature-extraction",
-            huggingfacehub_api_token="",  # !!!!! REPLACE !!!!!!!
+            huggingfacehub_api_token=os.environ.get("HUGGINGFACEHUB_API_TOKEN"),
         )
         self._vector_store = QdrantVectorStore(
             client=self._client, collection_name=collection_name, embedding=embeddings
