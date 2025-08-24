@@ -7,14 +7,14 @@ from .web_scrapper import WebScrapper
 
 
 class KufarWebSrapper(WebScrapper):
-    def __init__(self):
-        super().__init__(site_url="https://re.kufar.by")
+    def __init__(self, logger):
+        super().__init__(site_url="https://re.kufar.by", logger=logger)
 
     def _extract_offers_from_one_page(self, url: str) -> list:
-        print(url)
+        self.logger.info(f"Extracting offers for {url}")
         self._source = requests.request(method="POST", url=url)
         if self._source.status_code != 200:
-            print(f"Response code = {self._source.status_code}")
+            self.logger.error(f"Response code = {self._source.status_code}")
             return []
         self._soup = BeautifulSoup(markup=self._source.text, features="html.parser")
         offers_div = self._soup.find("div", class_="styles_cards__HMGBx")
@@ -53,17 +53,24 @@ class KufarWebSrapper(WebScrapper):
                 .get("data-name")
             )
             return data
-        except AttributeError as _:
-            print(f"Cannot extract label {label_name}")
+        except (AttributeError, IndexError) as _:
+            self.logger.warning(f"Cannot extract label {label_name}")
             return None
 
     def parse_offer_page(self, page_url: str) -> dict:
         page_source = None
-        while page_source is not None:
-            page_source = requests.request(method="POST", url=page_url)
-            time.sleep(1)
+        while page_source is None:
+            try:
+                page_source = requests.request(method="POST", url=page_url)
+            except Exception as _:
+                self.logger.warning(
+                    f"Cannot extract page data from {page_url}. Retrying in 1 second"
+                )
+                time.sleep(1)
         if page_source.status_code != 200:
-            print(f"Cannot process page {page_url}. Code - {page_source.status_code}")
+            self.logger.error(
+                f"Cannot process page {page_url}. Code - {page_source.status_code}"
+            )
             return {}
         page_bs = BeautifulSoup(markup=page_source.text, features="html.parser")
 
@@ -119,7 +126,7 @@ class KufarWebSrapper(WebScrapper):
         offer_data["is_studio"] = self._extract_offer_info_label(page_bs, "studio")
         offer_data["floor"] = self._extract_offer_info_label(page_bs, "floor")
 
-        offer_data["description"] = (
+        offer_data["description"] = str(
             page_bs.find("div", attrs={"id": "description"})
             .find("div", attrs={"itemprop": "description"})
             .contents[0]
