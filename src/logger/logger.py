@@ -32,7 +32,7 @@ class ColoredFormatter(logging.Formatter):
         return super().format(record)
 
 
-def get_logger_object(log_file: str = None) -> logging.Logger:
+def get_logger_object(log_file: str = None, log_dir: str = "logs") -> logging.Logger:
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
 
@@ -51,8 +51,7 @@ def get_logger_object(log_file: str = None) -> logging.Logger:
     logger.addHandler(console_handler)
 
     if log_file:
-        # Create logs directory if it doesn't exist
-        log_dir = os.path.dirname(log_file)
+        log_dir = os.path.dirname(log_dir)
         if log_dir and not os.path.exists(log_dir):
             os.makedirs(log_dir)
 
@@ -61,7 +60,7 @@ def get_logger_object(log_file: str = None) -> logging.Logger:
             datefmt="%Y-%m-%d %H:%M:%S",
         )
 
-        file_handler = logging.FileHandler(log_file, encoding="utf-8")
+        file_handler = logging.FileHandler(f"{log_dir}/{log_file}", encoding="utf-8")
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
