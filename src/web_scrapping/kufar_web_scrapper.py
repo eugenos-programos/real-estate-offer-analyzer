@@ -1,4 +1,5 @@
 import time
+from typing import Union
 
 import requests
 from bs4 import BeautifulSoup
@@ -10,12 +11,15 @@ class KufarWebSrapper(WebScrapper):
     def __init__(self, logger):
         super().__init__(site_url="https://re.kufar.by", logger=logger)
 
-    def _extract_offers_from_one_page(self, url: str) -> list:
+    def _extract_offers_from_one_page(self, url: str, timeout: int = 5) -> list:
         self.logger.info(f"Extracting offers for {url}")
         self._source = requests.request(method="POST", url=url)
-        if self._source.status_code != 200:
-            self.logger.error(f"Response code = {self._source.status_code}")
-            return []
+        while self._source.status_code != 200:
+            self.logger.error(
+                f"Response code = {self._source.status_code}. Retrying in {timeout} seconds."
+            )
+            time.sleep(timeout)
+            self._source = requests.request(method="POST", url=url)
         self._soup = BeautifulSoup(markup=self._source.text, features="html.parser")
         offers_div = self._soup.find("div", class_="styles_cards__HMGBx")
         offers_hrefs = []
@@ -37,6 +41,7 @@ class KufarWebSrapper(WebScrapper):
             next_page_url = self._soup.find(
                 "a", href=True, attrs={"data-testid": "realty-pagination-next-link"}
             )
+            time.sleep(2)
         return offers
 
     def _extract_offer_info_label(
@@ -57,21 +62,25 @@ class KufarWebSrapper(WebScrapper):
             self.logger.warning(f"Cannot extract label {label_name}")
             return None
 
-    def parse_offer_page(self, page_url: str) -> dict:
+    def parse_offer_page(self, page_url: str) -> Union[dict, None]:
         page_source = None
-        while page_source is None:
+        n_retries = 0
+        while page_source is None or page_source.status_code != 200:
+            if n_retries > 5:
+                self.logger.error(
+                    f"Max retries number has reached for page url - {page_url}"
+                )
+                return
             try:
                 page_source = requests.request(method="POST", url=page_url)
             except Exception as _:
-                self.logger.warning(
+                self.logger.error(
                     f"Cannot extract page data from {page_url}. Retrying in 1 second"
                 )
-                time.sleep(1)
-        if page_source.status_code != 200:
-            self.logger.error(
-                f"Cannot process page {page_url}. Code - {page_source.status_code}"
-            )
-            return {}
+                if page_source is not None:
+                    self.logger.error(f"HTTP code - {page_source.status_code}")
+                time.sleep(5)
+            n_retries += 1
         page_bs = BeautifulSoup(markup=page_source.text, features="html.parser")
 
         offer_data = {}
