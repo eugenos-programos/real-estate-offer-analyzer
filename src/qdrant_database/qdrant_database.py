@@ -35,17 +35,44 @@ class QdrantDatabaseClient:
         self._vector_store = QdrantVectorStore(
             client=self._client, collection_name=collection_name, embedding=embeddings
         )
+        self._collection_name = collection_name
+
+    def _check_if_object_already_exists(self, obj_id: str) -> bool:
+        scroll_res = self._client.scroll(
+            collection_name=self._collection_name,
+            scroll_filter=models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="id", match=models.MatchValue(value=obj_id)
+                    )
+                ]
+            ),
+        )
+        return scroll_res[-1] is not None
 
     def add_documents_to_database(self, offers_data: list[dict]) -> None:
         documents = []
         for offer_data in offers_data:
-            document = Document(
-                page_content=offer_data.pop("description"),
-                metadata=offer_data,
-            )
-            documents.append(document)
+            if not self._check_if_object_already_exists(offer_data["id"]):
+                document = Document(
+                    page_content=offer_data.pop("description")
+                    if "description" in offer_data
+                    else "",
+                    metadata=offer_data,
+                )
+                documents.append(document)
+                self.logger.info(
+                    f"Object with id={offers_data['id']} added to vector store"
+                )
+            else:
+                self.logger.warning(
+                    f"Object with id={offer_data['id']} already exists in vector store"
+                )
         self._vector_store.add_documents(documents)
         self.logger.info(f"Added {len(documents)} documents into Qdrant vector store.")
+
+    def update_store(self, new_offers_data: list[dict]) -> None:
+        pass
 
     def search_with_filters(self, query: str) -> list:
         docs = self._vector_store.similarity_search(query)
