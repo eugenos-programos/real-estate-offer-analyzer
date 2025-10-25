@@ -32,8 +32,10 @@ class ColoredFormatter(logging.Formatter):
         return super().format(record)
 
 
-def get_logger_object(log_file: str = None, log_dir: str = "logs") -> logging.Logger:
-    logger = logging.getLogger()
+def get_logger_object(
+    log_file: str = None, log_dir: str = "logs", log_name: str = "real_estate_logger"
+) -> logging.Logger:
+    logger = logging.getLogger(name=log_name)
     logger.setLevel(logging.DEBUG)
 
     # Create console handler
@@ -51,16 +53,17 @@ def get_logger_object(log_file: str = None, log_dir: str = "logs") -> logging.Lo
     logger.addHandler(console_handler)
 
     if log_file:
-        log_dir = os.path.dirname(log_dir)
         if log_dir and not os.path.exists(log_dir):
             os.makedirs(log_dir)
+        elif log_dir and os.path.exists(log_path := f"{log_dir}/{log_file}"):
+            os.remove(log_path)
 
         file_formatter = logging.Formatter(
             "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S",
         )
 
-        file_handler = logging.FileHandler(f"{log_dir}/{log_file}", encoding="utf-8")
+        file_handler = logging.FileHandler(log_path, encoding="utf-8")
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
