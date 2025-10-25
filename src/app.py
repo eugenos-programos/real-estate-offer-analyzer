@@ -13,7 +13,7 @@ web_scrapper = KufarWebSrapper(logger)
 client = QdrantDatabaseClient(
     qdrant_localhost_port=8888,
     collection_name="real_estate_offers",
-    vector_size=768,
+    vector_size=4096,
     logger=logger,
 )
 
