@@ -20,10 +20,19 @@ class QdrantDatabaseClient:
         query_maker_model: str = "Qwen/Qwen2.5-VL-7B-Instruct",
         prompt_for_query_maker_moodel_template_filepath: str = "prompt_template.txt",
     ):
+        self.logger = logger
         self._client = QdrantClient(
             host="localhost", port=qdrant_localhost_port, timeout=2.0
         )
-        self.logger = logger
+
+        # check connection
+        try:
+            self._client.get_collections()
+        except Exception:
+            self.logger.fatal(
+                "Cannot extract collections from Qdrant DB. Please check connection."
+            )
+            exit(1)
         if not self._client.collection_exists(collection_name):
             self._client.create_collection(
                 collection_name=collection_name,
