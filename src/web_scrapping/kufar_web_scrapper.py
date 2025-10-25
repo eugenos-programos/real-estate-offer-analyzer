@@ -62,7 +62,7 @@ class KufarWebSrapper(WebScrapper):
             self.logger.warning(f"Cannot extract label {label_name}")
             return None
 
-    def parse_offer_page(self, page_url: str) -> Union[dict, None]:
+    async def parse_offer_page(self, page_url: str) -> Union[dict, None]:
         page_source = None
         n_retries = 0
         while page_source is None or page_source.status_code != 200:
@@ -72,75 +72,96 @@ class KufarWebSrapper(WebScrapper):
                 )
                 return
             try:
-                page_source = requests.request(method="POST", url=page_url)
-            except Exception as _:
+                import httpx
+
+                async with httpx.AsyncClient() as client:
+                    responce = await client.post(page_url)
+                    responce.raise_for_status()
+
+                page_bs = BeautifulSoup(markup=responce.text, features="html.parser")
+
+                offer_data = {}
+
+                offer_data["id"] = page_url[page_url.rfind("/") + 1 :]
+
+                offer_data["n_rooms"] = self._extract_offer_info_label(
+                    page_bs, "rooms", "a"
+                )
+                offer_data["sq_meters_size"] = self._extract_offer_info_label(
+                    page_bs, "size"
+                )
+                offer_data["bathroom_type"] = self._extract_offer_info_label(
+                    page_bs, "bathroom"
+                )
+                offer_data["balcony_type"] = self._extract_offer_info_label(
+                    page_bs, "balcony"
+                )
+                offer_data["flat_improvement"] = self._extract_offer_info_label(
+                    page_bs, "flat_improvement"
+                )
+                offer_data["flat_bath"] = self._extract_offer_info_label(
+                    page_bs, "flat_bath"
+                )
+                offer_data["flat_kitchen"] = self._extract_offer_info_label(
+                    page_bs, "flat_kitchen"
+                )
+                offer_data["flat_rent_for_whom"] = self._extract_offer_info_label(
+                    page_bs, "flat_rent_for_whom"
+                )
+                offer_data["flat_rent_prepayment"] = self._extract_offer_info_label(
+                    page_bs, "flat_rent_prepayment"
+                )
+                offer_data["flat_window_side"] = self._extract_offer_info_label(
+                    page_bs, "flat_windows_side"
+                )
+                offer_data["flat_condition"] = self._extract_offer_info_label(
+                    page_bs, "condition"
+                )
+
+                offer_data["building_number_floors"] = self._extract_offer_info_label(
+                    page_bs, "re_number_floors"
+                )
+                offer_data["year_built"] = self._extract_offer_info_label(
+                    page_bs, "year_built"
+                )
+                offer_data["flat_building_improvements"] = (
+                    self._extract_offer_info_label(
+                        page_bs, "flat_building_improvements"
+                    )
+                )
+                offer_data["is_flat_new_building"] = self._extract_offer_info_label(
+                    page_bs, "flat_new_building"
+                )
+
+                offer_data["microdistrict"] = self._extract_offer_info_label(
+                    page_bs, "re_district", "a"
+                )
+                offer_data["metro"] = self._extract_offer_info_label(
+                    page_bs, "metro", "a"
+                )
+
+                offer_data["flat_rent_couchettes"] = self._extract_offer_info_label(
+                    page_bs, "flat_rent_couchettes"
+                )
+                offer_data["is_studio"] = self._extract_offer_info_label(
+                    page_bs, "studio"
+                )
+                offer_data["floor"] = self._extract_offer_info_label(page_bs, "floor")
+
+                offer_data["description"] = str(
+                    page_bs.find("div", attrs={"id": "description"})
+                    .find("div", attrs={"itemprop": "description"})
+                    .contents[0]
+                )
+
+                offer_data["description"] += f"\n Ссылка на объявление - {page_url}."
+            except Exception as exc:
                 self.logger.error(
-                    f"Cannot extract page data from {page_url}. Retrying in 1 second"
+                    f"Cannot extract page data from {page_url}.\n Error - {exc}. Retrying in 1 second"
                 )
                 if page_source is not None:
                     self.logger.error(f"HTTP code - {page_source.status_code}")
                 time.sleep(5)
             n_retries += 1
-        page_bs = BeautifulSoup(markup=page_source.text, features="html.parser")
-
-        offer_data = {}
-
-        offer_data["id"] = page_url[page_url.rfind("/") + 1 :]
-
-        offer_data["n_rooms"] = self._extract_offer_info_label(page_bs, "rooms", "a")
-        offer_data["sq_meters_size"] = self._extract_offer_info_label(page_bs, "size")
-        offer_data["bathroom_type"] = self._extract_offer_info_label(
-            page_bs, "bathroom"
-        )
-        offer_data["balcony_type"] = self._extract_offer_info_label(page_bs, "balcony")
-        offer_data["flat_improvement"] = self._extract_offer_info_label(
-            page_bs, "flat_improvement"
-        )
-        offer_data["flat_bath"] = self._extract_offer_info_label(page_bs, "flat_bath")
-        offer_data["flat_kitchen"] = self._extract_offer_info_label(
-            page_bs, "flat_kitchen"
-        )
-        offer_data["flat_rent_for_whom"] = self._extract_offer_info_label(
-            page_bs, "flat_rent_for_whom"
-        )
-        offer_data["flat_rent_prepayment"] = self._extract_offer_info_label(
-            page_bs, "flat_rent_prepayment"
-        )
-        offer_data["flat_window_side"] = self._extract_offer_info_label(
-            page_bs, "flat_windows_side"
-        )
-        offer_data["flat_condition"] = self._extract_offer_info_label(
-            page_bs, "condition"
-        )
-
-        offer_data["building_number_floors"] = self._extract_offer_info_label(
-            page_bs, "re_number_floors"
-        )
-        offer_data["year_built"] = self._extract_offer_info_label(page_bs, "year_built")
-        offer_data["flat_building_improvements"] = self._extract_offer_info_label(
-            page_bs, "flat_building_improvements"
-        )
-        offer_data["is_flat_new_building"] = self._extract_offer_info_label(
-            page_bs, "flat_new_building"
-        )
-
-        offer_data["microdistrict"] = self._extract_offer_info_label(
-            page_bs, "re_district", "a"
-        )
-        offer_data["metro"] = self._extract_offer_info_label(page_bs, "metro", "a")
-
-        offer_data["flat_rent_couchettes"] = self._extract_offer_info_label(
-            page_bs, "flat_rent_couchettes"
-        )
-        offer_data["is_studio"] = self._extract_offer_info_label(page_bs, "studio")
-        offer_data["floor"] = self._extract_offer_info_label(page_bs, "floor")
-
-        offer_data["description"] = str(
-            page_bs.find("div", attrs={"id": "description"})
-            .find("div", attrs={"itemprop": "description"})
-            .contents[0]
-        )
-
-        offer_data["description"] += f"\n Ссылка на объявление - {page_url}."
 
         return offer_data
